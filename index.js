@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════
 //  PROJECT MAINFRAME — ULEN WhatsApp Backend
-//  Version: 5.1 — Voice Notes + STT + TTS
+//  Version: 5.1 — Voice Notes (Vosk STT + gTTS) — Zero OpenAI
 //  Powered by: Baileys + Anthropic Claude + Whisper + gTTS
 //  Identity: Male. Digital face: Bariqqi's creation.
 // ════════════════════════════════════════════════════════════════
@@ -515,15 +515,15 @@ async function connectToWhatsApp() {
           msg.message?.imageMessage?.caption ||
           msg.message?.documentMessage?.caption || '';
 
-        // ── Voice note received → transcribe with Whisper ──
+        // ── Voice note received → transcribe with Vosk (local, no API) ──
         if (!text && isVoiceNote(msg)) {
           try {
             console.log(`[VOICE STT] Incoming voice note from ${pushName} — transcribing...`);
             const audioBuffer = await downloadMediaMessage(msg, 'buffer', {});
-            text = await transcribeVoiceNote(audioBuffer, 'audio/ogg');
+            text = await transcribeVoiceNote(audioBuffer);
             if (!text) {
               await sock.sendMessage(jid, {
-                text: "I received your voice note but couldn't make it out clearly. Could you type it out?"
+                text: "I got your voice note but couldn't make it out. Type it out for me? 🙏"
               }, { quoted: msg });
               continue;
             }
@@ -531,7 +531,7 @@ async function connectToWhatsApp() {
           } catch(voiceErr) {
             console.error('[VOICE STT FAIL]', voiceErr.message);
             await sock.sendMessage(jid, {
-              text: "I got your voice note but had trouble processing it. Try typing it out? 🙏"
+              text: "Had trouble with that voice note. Try typing it? 🙏"
             }, { quoted: msg });
             continue;
           }
