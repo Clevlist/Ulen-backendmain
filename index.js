@@ -466,26 +466,54 @@ async function connectToWhatsApp() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
-      console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('  ULEN v5.0 — Scan with WhatsApp');
-      console.log('  Settings → Linked Devices → Link a Device');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-      qrcode.generate(qr, { small: true });
+  // ── Request pairing code once socket opens ──────────────────
+  const OWNER_PHONE = '2348144013686'; // without the + sign
+  let pairingRequested = false;
+
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+
+    // Request pairing code instead of QR
+    if (qr && !pairingRequested && !sock.authState.creds.registered) {
+      pairingRequested = true;
+      try {
+        await sock.waitForConnectionUpdate(() => true);
+      } catch {}
     }
+
+    if (connection === 'open' && !sock.authState.creds.registered && !pairingRequested) {
+      pairingRequested = true;
+      try {
+        const code = await sock.requestPairingCode(OWNER_PHONE);
+        const formatted = code.match(/.{1,4}/g).join('-'); // e.g. ABCD-1234
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('  ULEN — PAIRING CODE');
+        console.log(`\n  👉  ${formatted}  👈\n`);
+        console.log('  On your phone:');
+        console.log('  WhatsApp → Settings → Linked Devices');
+        console.log('  → Link a Device → Link with phone number');
+        console.log('  → Enter this code');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch(err) {
+        console.error('[PAIRING CODE ERROR]', err.message);
+        console.log('Retrying in 5 seconds...');
+        setTimeout(() => { pairingRequested = false; }, 5000);
+      }
+    }
+
     if (connection === 'open') {
-      console.log('\n✅ ULEN IS LIVE — Project Mainframe v5.0 Online\n');
-      console.log('📋 Group JIDs will appear in logs as messages come in.');
-      console.log('📋 Copy them into CONFIG.priceRoutes and CONFIG.activeGroups\n');
+      console.log('\n✅ ULEN IS LIVE — Project Mainframe v5.1 Online\n');
+      console.log('📋 Group JIDs appear in logs as messages arrive.');
+      console.log('📋 Visit /groups endpoint to see them all.\n');
     }
+
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
       if (code !== DisconnectReason.loggedOut) {
         console.log(`[RECONNECTING] code: ${code}`);
+        pairingRequested = false;
         setTimeout(connectToWhatsApp, 4000);
       } else {
-        console.log('[LOGGED OUT] Delete auth_info_baileys folder and restart.');
+        console.log('[LOGGED OUT] Delete auth_info_baileys folder and restart to re-pair.');
       }
     }
   });
