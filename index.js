@@ -458,59 +458,50 @@ async function connectToWhatsApp() {
 
   sock = makeWASocket({
     version,
-    auth:   state,
+    auth:                        state,
     logger,
-    browser: ['Ulen — Project Mainframe', 'Chrome', '5.0.0'],
+    browser:                     ['Ulen — Project Mainframe', 'Chrome', '5.0.0'],
     generateHighQualityLinkPreview: false,
+    printQRInTerminal:           false,
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  // ── Request pairing code once socket opens ──────────────────
-  const OWNER_PHONE = '2348144013686'; // without the + sign
-  let pairingRequested = false;
+  const OWNER_PHONE = '2348144013686'; // no + sign
+  let   pairingDone = false;
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
 
-    // Request pairing code instead of QR
-    if (qr && !pairingRequested && !sock.authState.creds.registered) {
-      pairingRequested = true;
+    // ── Pairing code: triggered when QR would normally appear ──
+    if (qr && !pairingDone && !sock.authState.creds.registered) {
+      pairingDone = true;
       try {
-        await sock.waitForConnectionUpdate(() => true);
-      } catch {}
-    }
-
-    if (connection === 'open' && !sock.authState.creds.registered && !pairingRequested) {
-      pairingRequested = true;
-      try {
-        const code = await sock.requestPairingCode(OWNER_PHONE);
-        const formatted = code.match(/.{1,4}/g).join('-'); // e.g. ABCD-1234
+        const code      = await sock.requestPairingCode(OWNER_PHONE);
+        const formatted = code.match(/.{1,4}/g).join('-');
         console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('  ULEN — PAIRING CODE');
-        console.log(`\n  👉  ${formatted}  👈\n`);
-        console.log('  On your phone:');
+        console.log('  ULEN — ENTER THIS CODE IN WHATSAPP\n');
+        console.log(`        👉  ${formatted}  👈\n`);
         console.log('  WhatsApp → Settings → Linked Devices');
         console.log('  → Link a Device → Link with phone number');
-        console.log('  → Enter this code');
+        console.log('  → Type the code above');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
       } catch(err) {
-        console.error('[PAIRING CODE ERROR]', err.message);
-        console.log('Retrying in 5 seconds...');
-        setTimeout(() => { pairingRequested = false; }, 5000);
+        console.error('[PAIRING ERROR]', err.message);
+        pairingDone = false;
       }
     }
 
     if (connection === 'open') {
       console.log('\n✅ ULEN IS LIVE — Project Mainframe v5.1 Online\n');
       console.log('📋 Group JIDs appear in logs as messages arrive.');
-      console.log('📋 Visit /groups endpoint to see them all.\n');
+      console.log('📋 Visit /groups endpoint to see all active groups.\n');
     }
 
     if (connection === 'close') {
-      const code = lastDisconnect?.error?.output?.statusCode;
-      if (code !== DisconnectReason.loggedOut) {
-        console.log(`[RECONNECTING] code: ${code}`);
-        pairingRequested = false;
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      if (statusCode !== DisconnectReason.loggedOut) {
+        console.log(`[RECONNECTING] status: ${statusCode}`);
+        pairingDone = false;
         setTimeout(connectToWhatsApp, 4000);
       } else {
         console.log('[LOGGED OUT] Delete auth_info_baileys folder and restart to re-pair.');
