@@ -321,7 +321,7 @@ async function getReply(jid, userText, ctx = {}) {
 
   try {
     const r = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6', max_tokens: 1024,
+      model: 'claude-opus-4-5', max_tokens: 1024,
       system: systemPrompt,
       messages: getHistory(jid),
     });
@@ -329,10 +329,14 @@ async function getReply(jid, userText, ctx = {}) {
     addToHistory(jid, 'assistant', reply);
     return reply;
   } catch(err) {
-    console.error('[API]', err.status, err.message);
-    if (err.status === 529) return "I dey overwhelmed small 😅 Try again in a moment.";
-    if (err.status === 429) return "Too many messages — slow down small 🌙";
-    return "Something went off. Try again?";
+    const status  = err.status || err.statusCode || 'unknown';
+    const message = err.message || JSON.stringify(err);
+    console.error(`[API ERROR] status=${status} msg=${message}`);
+    if (status === 529) return "I dey overwhelmed small 😅 Try again in a moment.";
+    if (status === 429) return "Too many messages — slow down small 🌙";
+    if (status === 401) return "Auth issue on my end — will sort it out.";
+    if (status === 400) return "Something about that message confused me. Try again?";
+    return `Something went off (${status}). Try again?`;
   }
 }
 
