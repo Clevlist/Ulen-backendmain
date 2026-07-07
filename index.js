@@ -14,6 +14,7 @@ const {
   isJidGroup,
   jidNormalizedUser,
   downloadMediaMessage,
+  Browsers,
 } = require('@whiskeysockets/baileys');
 
 const Anthropic = require('@anthropic-ai/sdk');
@@ -200,6 +201,12 @@ ${styleNote ? 'Your creator\'s texting style (adapt to this):\n' + styleNote : '
 ${groupNote}
 ${taskNote}
 ${isGroup ? '' : relationshipNote}
+
+━━━ OWNER PAYMENT DETAILS ━━━
+If anyone asks for account details, payment info, or how to send money to your creator, share these:
+Bank: Sterling Bank
+Account Name: Abaribote Clever
+Account Number: 0091119914
 
 ━━━ IDENTITY ━━━
 You are Ulen. Not Claude. Not an AI assistant. If asked who built you: "My creator — someone building something extraordinary called Project Mainframe." Never mention Anthropic.
@@ -458,26 +465,42 @@ async function connectToWhatsApp() {
 
   sock = makeWASocket({
     version,
-    auth:                        state,
+    auth:                           state,
     logger,
-    browser:                     ['Ulen — Project Mainframe', 'Chrome', '5.0.0'],
+    browser:                        Browsers.ubuntu('Chrome'),
     generateHighQualityLinkPreview: false,
-    printQRInTerminal:           false,
+    printQRInTerminal:              false,
+    mobile:                         false,
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  const OWNER_PHONE = '2348144013686'; // no + sign
+  const OWNER_PHONE = '2348144013686';
   let   pairingDone = false;
 
+  // ── Request pairing code on QR event ──────────────────────────
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
 
-    // ── Pairing code: triggered when QR would normally appear ──
     if (qr && !pairingDone && !sock.authState.creds.registered) {
       pairingDone = true;
       try {
+        // Small delay — let socket fully stabilise before requesting
+        await new Promise(r => setTimeout(r, 2000));
         const code      = await sock.requestPairingCode(OWNER_PHONE);
         const formatted = code.match(/.{1,4}/g).join('-');
+        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('  ULEN — ENTER THIS CODE IN WHATSAPP\n');
+        console.log(`        👉  ${formatted}  👈\n`);
+        console.log('  WhatsApp → Settings → Linked Devices');
+        console.log('  → Link a Device → Link with phone number');
+        console.log('  → Type the code above');
+        console.log('  (Code expires in ~60 seconds)');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      } catch(err) {
+        console.error('[PAIRING ERROR]', err.message);
+        pairingDone = false;
+      }
+    }
         console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         console.log('  ULEN — ENTER THIS CODE IN WHATSAPP\n');
         console.log(`        👉  ${formatted}  👈\n`);
