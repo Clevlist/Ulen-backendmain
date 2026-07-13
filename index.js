@@ -1,9 +1,7 @@
 // ════════════════════════════════════════════════════════════════
 //  PROJECT MAINFRAME — ULEN WhatsApp Backend
-//  Version: 7.0 — Full Intelligence Edition
-//  Engines: Gemini (primary/free) → Claude → Grok
-//  New: Status profiling, broadcast engine, split messages,
-//       patient reply system, sales intelligence, continuous learning
+//  Version: 7.1 — Six-Engine Edition
+//  Engines: Gemini → Claude → Grok → DeepSeek → Groq → OpenRouter
 //  Identity: Male. Built by Bariqqi.
 // ════════════════════════════════════════════════════════════════
 
@@ -33,8 +31,11 @@ const execAsync          = promisify(exec);
 // ════════════════════════════════════════════════════════════════
 
 const ANTHROPIC_API_KEY   = process.env.ANTHROPIC_API_KEY   || '';
-const GEMINI_API_KEY      = process.env.GEMINI_API_KEY      || '';
-const GROK_API_KEY        = process.env.GROK_API_KEY        || '';
+const GEMINI_API_KEY      = process.env.GEMINI_API_KEY      || process.env.GOOGLE_API_KEY || '';
+const GROK_API_KEY        = process.env.GROK_API_KEY        || process.env.XAI_API_KEY    || '';
+const DEEPSEEK_API_KEY    = process.env.DEEPSEEK_API_KEY    || '';
+const GROQ_API_KEY        = process.env.GROQ_API_KEY        || '';
+const OPENROUTER_API_KEY  = process.env.OPENROUTER_API_KEY  || '';
 const ELEVENLABS_API_KEY  = process.env.ELEVENLABS_API_KEY  || '';
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '';
 const PORT                = process.env.PORT || 3000;
@@ -64,16 +65,26 @@ app.use(express.json());
 // ════════════════════════════════════════════════════════════════
 
 const llmStatus = {
-  gemini: { available: !!GEMINI_API_KEY,    lastError: null },
-  claude: { available: !!ANTHROPIC_API_KEY, lastError: null },
-  grok:   { available: !!GROK_API_KEY,      lastError: null },
+  gemini:      { available: !!GEMINI_API_KEY,     lastError: null },
+  claude:      { available: !!ANTHROPIC_API_KEY,  lastError: null },
+  grok:        { available: !!GROK_API_KEY,        lastError: null },
+  deepseek:    { available: !!DEEPSEEK_API_KEY,   lastError: null },
+  groq:        { available: !!GROQ_API_KEY,        lastError: null },
+  openrouter:  { available: !!OPENROUTER_API_KEY,  lastError: null },
 };
 
 function logLLMStatus() {
   const lines = Object.entries(llmStatus)
-    .map(([n, s]) => `  ${n.toUpperCase()}: ${s.available ? '✅ ready' : '❌ no key'}`)
+    .map(([n, s]) => `  ${n.toUpperCase().padEnd(12)}: ${s.available ? '✅ ready' : '❌ no key'}`)
     .join('\n');
   console.log('[LLM ENGINES]\n' + lines);
+  console.log('[KEY CHECK]');
+  console.log(`  ANTHROPIC:   ${ANTHROPIC_API_KEY  ? ANTHROPIC_API_KEY.slice(0,8)  + '...' : 'NOT SET'}`);
+  console.log(`  GEMINI:      ${GEMINI_API_KEY      ? GEMINI_API_KEY.slice(0,8)      + '...' : 'NOT SET'}`);
+  console.log(`  GROK/XAI:    ${GROK_API_KEY        ? GROK_API_KEY.slice(0,8)        + '...' : 'NOT SET'}`);
+  console.log(`  DEEPSEEK:    ${DEEPSEEK_API_KEY    ? DEEPSEEK_API_KEY.slice(0,8)    + '...' : 'NOT SET'}`);
+  console.log(`  GROQ:        ${GROQ_API_KEY        ? GROQ_API_KEY.slice(0,8)        + '...' : 'NOT SET'}`);
+  console.log(`  OPENROUTER:  ${OPENROUTER_API_KEY  ? OPENROUTER_API_KEY.slice(0,8)  + '...' : 'NOT SET'}`);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -706,19 +717,138 @@ async function callGrok(systemPrompt, history) {
   });
 }
 
+// ── DeepSeek ─────────────────────────────────────────────────────
+async function callDeepSeek(systemPrompt, history) {
+  if (!DEEPSEEK_API_KEY) throw new Error('No DeepSeek key');
+  const body = JSON.stringify({
+    model:       'deepseek-chat',
+    max_tokens:  1024,
+    temperature: 0.9,
+    messages:    [{ role: 'system', content: systemPrompt }, ...history],
+  });
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.deepseek.com',
+      path:     '/v1/chat/completions',
+      method:   'POST',
+      headers:  {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const text = json.choices?.[0]?.message?.content;
+          if (text) resolve(text);
+          else reject(new Error('DeepSeek: ' + (json.error?.message || data.slice(0, 150))));
+        } catch(e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => reject(new Error('DeepSeek timeout')));
+    req.write(body); req.end();
+  });
+}
+
+// ── Groq (ultra-fast Llama) ──────────────────────────────────────
+async function callGroq(systemPrompt, history) {
+  if (!GROQ_API_KEY) throw new Error('No Groq key');
+  const body = JSON.stringify({
+    model:       'llama-3.3-70b-versatile',
+    max_tokens:  1024,
+    temperature: 0.9,
+    messages:    [{ role: 'system', content: systemPrompt }, ...history],
+  });
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.groq.com',
+      path:     '/openai/v1/chat/completions',
+      method:   'POST',
+      headers:  {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const text = json.choices?.[0]?.message?.content;
+          if (text) resolve(text);
+          else reject(new Error('Groq: ' + (json.error?.message || data.slice(0, 150))));
+        } catch(e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => reject(new Error('Groq timeout')));
+    req.write(body); req.end();
+  });
+}
+
+// ── OpenRouter (200+ model fallback) ────────────────────────────
+async function callOpenRouter(systemPrompt, history) {
+  if (!OPENROUTER_API_KEY) throw new Error('No OpenRouter key');
+  const body = JSON.stringify({
+    model:       'mistralai/mistral-7b-instruct:free',  // free model
+    max_tokens:  1024,
+    temperature: 0.9,
+    messages:    [{ role: 'system', content: systemPrompt }, ...history],
+  });
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'openrouter.ai',
+      path:     '/api/v1/chat/completions',
+      method:   'POST',
+      headers:  {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer':  'https://ulen-backendmain.onrender.com',
+        'X-Title':       'Ulen — Project Mainframe',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const text = json.choices?.[0]?.message?.content;
+          if (text) resolve(text);
+          else reject(new Error('OpenRouter: ' + (json.error?.message || data.slice(0, 150))));
+        } catch(e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(30000, () => reject(new Error('OpenRouter timeout')));
+    req.write(body); req.end();
+  });
+}
+
 async function callLLMRaw(system, userText) {
   const h = [{ role: 'user', content: userText }];
-  try { return await callGemini(system, h); } catch {}
-  try { return await callClaude(system, h); } catch {}
-  try { return await callGrok(system, h); } catch {}
+  try { return await callGemini(system, h); }     catch {}
+  try { return await callClaude(system, h); }     catch {}
+  try { return await callGrok(system, h); }       catch {}
+  try { return await callDeepSeek(system, h); }   catch {}
+  try { return await callGroq(system, h); }       catch {}
+  try { return await callOpenRouter(system, h); } catch {}
   return null;
 }
 
 async function callLLM(systemPrompt, history) {
   const engines = [
-    { name: 'Gemini', fn: () => callGemini(systemPrompt, history), status: llmStatus.gemini },
-    { name: 'Claude', fn: () => callClaude(systemPrompt, history), status: llmStatus.claude },
-    { name: 'Grok',   fn: () => callGrok(systemPrompt, history),   status: llmStatus.grok   },
+    { name: 'Gemini',     fn: () => callGemini(systemPrompt, history),     status: llmStatus.gemini     },
+    { name: 'Claude',     fn: () => callClaude(systemPrompt, history),     status: llmStatus.claude     },
+    { name: 'Grok',       fn: () => callGrok(systemPrompt, history),       status: llmStatus.grok       },
+    { name: 'DeepSeek',   fn: () => callDeepSeek(systemPrompt, history),   status: llmStatus.deepseek   },
+    { name: 'Groq',       fn: () => callGroq(systemPrompt, history),       status: llmStatus.groq       },
+    { name: 'OpenRouter', fn: () => callOpenRouter(systemPrompt, history), status: llmStatus.openrouter },
   ];
   for (const engine of engines) {
     if (!engine.status.available) continue;
@@ -732,9 +862,9 @@ async function callLLM(systemPrompt, history) {
     } catch(err) {
       const msg   = err.message || '';
       engine.status.lastError = msg;
-      const fatal = /credit|billing|401|API key|quota/i.test(msg);
+      const fatal = /credit|billing|401|API key|quota|invalid_api_key/i.test(msg);
       console.error(`[LLM ${engine.name}] ${msg.slice(0, 100)}`);
-      if (fatal) { engine.status.available = false; console.warn(`[LLM] ${engine.name} disabled.`); }
+      if (fatal) { engine.status.available = false; console.warn(`[LLM] ${engine.name} disabled — ${msg.slice(0, 60)}`); }
     }
   }
   return null;
@@ -1037,13 +1167,16 @@ async function connectToWhatsApp() {
 
 app.get('/', (req, res) => res.json({
   status:   'online',
-  agent:    'Ulen v7.0',
+  agent:    'Ulen v7.1',
   contacts: contactProfiles.size,
   uptime:   Math.floor(process.uptime()) + 's',
   llm: {
-    gemini: llmStatus.gemini.available ? '✅' : `❌ ${llmStatus.gemini.lastError?.slice(0,50) || 'no key'}`,
-    claude: llmStatus.claude.available ? '✅' : `❌ ${llmStatus.claude.lastError?.slice(0,50) || 'no key'}`,
-    grok:   llmStatus.grok.available   ? '✅' : `❌ ${llmStatus.grok.lastError?.slice(0,50)   || 'no key'}`,
+    gemini:     llmStatus.gemini.available     ? '✅' : `❌ ${llmStatus.gemini.lastError?.slice(0,40)     || 'no key'}`,
+    claude:     llmStatus.claude.available     ? '✅' : `❌ ${llmStatus.claude.lastError?.slice(0,40)     || 'no key'}`,
+    grok:       llmStatus.grok.available       ? '✅' : `❌ ${llmStatus.grok.lastError?.slice(0,40)       || 'no key'}`,
+    deepseek:   llmStatus.deepseek.available   ? '✅' : `❌ ${llmStatus.deepseek.lastError?.slice(0,40)   || 'no key'}`,
+    groq:       llmStatus.groq.available       ? '✅' : `❌ ${llmStatus.groq.lastError?.slice(0,40)       || 'no key'}`,
+    openrouter: llmStatus.openrouter.available ? '✅' : `❌ ${llmStatus.openrouter.lastError?.slice(0,40) || 'no key'}`,
   },
   profiling: { tracked: Object.keys(PROFILES).length, broadcasts: BROADCASTS.filter(b => !b.sentAt).length },
   learnings: { teachings: LEARNINGS.teachings.length, lastUpdated: LEARNINGS.lastUpdated },
@@ -1090,7 +1223,7 @@ function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 app.listen(PORT, () => {
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  PROJECT MAINFRAME — Ulen v7.0');
+  console.log('  PROJECT MAINFRAME — Ulen v7.1 (6-Engine)');
   console.log(`  Port: ${PORT}`);
   logLLMStatus();
   console.log(`  Learnings: ${LEARNINGS.teachings.length} teachings`);
