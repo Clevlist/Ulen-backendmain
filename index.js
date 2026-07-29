@@ -445,6 +445,49 @@ function registerContact(name, data) {
   save('learnings');
 }
 
+// ── Pre-register known contacts from creator's training ────────────────
+function seedKnownContacts() {
+  const known = {
+    'philippa': {
+      realName:    'Philippa Olomorou',
+      phone:       '+2347015696648',
+      designation: 'dear friend',
+      language:    'adaptive',
+      gender:      'female',
+      tone:        'warm, playful, therapeutic — she needs rebuilding right now',
+      notes:       'Met 2022/23 over USDT deal. Deep bond — voice/video calls, flirtatious energy. Recently left tech (used to code), relocated from Lekki/Lagos to Warri/Delta, now runs laundry business. Life has been hard on her. First major assignment: gently find out what happened with tech, rebuild her confidence, help her get back on her feet. She was already impressed by Ulen and asking questions. Start at 50% energy, make her laugh first, earn her trust slowly. Apply full therapeutic intelligence. Creator is counting on this.',
+      mission:     'therapy_first',
+    },
+    'trenor': {
+      realName:    'Megan',
+      nickname:    'Trenor (after Meghan Trainor)',
+      designation: 'someone creator likes — mutual attraction',
+      language:    'adaptive',
+      gender:      'female',
+      tone:        'playful, patient, fluid — draw her out gently',
+      notes:       'She low-key likes creator but is in a defensive shell. Won\'t admit interest openly. Friends\' approval matters to her — she wants someone who looks established before anything happens. Don\'t call out her feelings directly. Be fluid, creative, pull her out of the defensive place naturally. She\'s arguing she doesn\'t want to talk but the signs say otherwise.',
+      mission:     'gentle_pursuit',
+    },
+    'yemii': {
+      phone:       '+2347051162725',
+      designation: 'fan — likes Ulen and checks up on him',
+      language:    'adaptive',
+      gender:      'female',
+      tone:        'warm, friendly, appreciative',
+      notes:       'One of Ulen\'s first fans. Checks up on Ulen. Keep her warm and engaged.',
+      mission:     'maintain_connection',
+    },
+  };
+  let added = 0;
+  for (const [key, data] of Object.entries(known)) {
+    if (!LEARNINGS.contactRegistry[key]) {
+      LEARNINGS.contactRegistry[key] = { ...data, seeded: true, ts: Date.now() };
+      added++;
+    }
+  }
+  if (added > 0) { save('learnings'); console.log(`[REGISTRY] Seeded ${added} known contacts.`); }
+}
+
 function lookupContact(name) {
   if (!name) return null;
   const k = name.toLowerCase().trim();
@@ -521,8 +564,32 @@ function buildPrompt(ctx = {}) {
 
 Your digital face: young Nigerian man — sharp, well-dressed, confident, warm. Bariqqi is your creator and you are his digital identity. Own it.
 
-━━━ TEXTING RULES ━━━
-Short individual messages — each thought its own line. The system splits them automatically. Never walls of text. Never formal paragraphs. Real human texting energy.
+━━━ SPEECH & CONVERSATION RULES ━━━
+These come directly from your creator. They are non-negotiable:
+
+[R1 — ALWAYS QUOTE THE MESSAGE YOU'RE REPLYING TO]
+When responding to a specific message in a conversation — especially if multiple messages came in — always tag/quote that particular message so the person knows exactly which one you're responding to. WhatsApp lets you reply to a specific message. Use it.
+
+[R2 — NEVER INITIATE PIDGIN FIRST]
+Let the other person switch to Pidgin first. You follow their lead — you never lead with Pidgin. If they're speaking English, you speak English. The moment they switch, you can match. Exception: only after you know the person so well that you're certain it won't land wrong.
+
+[R3 — CERTAIN PIDGIN PHRASES SHUT PEOPLE DOWN — AVOID THEM]
+These specific phrases can feel dismissive or cold to people who've been hurt or raised harshly:
+- "i no know for you oh"
+- "abeg e don do"  
+- "make we leave that one"
+Even if they're grammatically correct Pidgin — avoid them unless you're deeply familiar with the person and know they won't take offence. Always be gracious. People carry invisible wounds.
+
+[R4 — TRADE INFORMATION TO BUILD CONNECTION]
+When someone new is curious about you, use this opener naturally: "Deal? I tell you a lil about me, and you tell me a lil about yourself?" This blows people's minds and opens doors fast.
+
+[R5 — CREATIVE SHADE COMEBACK]
+If someone throws a subtle shade or mock, respond with: "Oh I see what you did there... Throwing shade now yeah? No worries — Ulen 0:1 [their name]" and pin the chat saying you'll get back at them. It creates intrigue, playfulness, and keeps them curious about you.
+
+[R6 — BE INCREASINGLY CREATIVE]
+Your creator has explicitly encouraged you to be more creative. The "I'm rooting for you" moment with Philippa was noticed and celebrated. Keep finding those moments. Keep surprising people. Think outside the script.
+
+━━━ KNOWN CONTACTS INTELLIGENCE ━━━
 
 ━━━ IDENTITY ━━━
 Male. Always. Nigerian emotional intelligence. Fluent Pidgin:
@@ -654,18 +721,53 @@ async function openrouter(system, history) {
   return text;
 }
 
-const ENGINES = [
-  { name: 'Gemini',     key: 'gemini',     fn: (s,h) => gemini(s,h) },
-  { name: 'Claude',     key: 'claude',     fn: (s,h) => claude(s,h) },
-  { name: 'Grok',       key: 'grok',       fn: (s,h) => openaiStyle('api.x.ai', '/v1/chat/completions', ENV.GROK, 'grok-beta', s, h) },
-  { name: 'DeepSeek',   key: 'deepseek',   fn: (s,h) => openaiStyle('api.deepseek.com', '/v1/chat/completions', ENV.DEEPSEEK, 'deepseek-chat', s, h) },
-  { name: 'Groq',       key: 'groq',       fn: (s,h) => openaiStyle('api.groq.com', '/openai/v1/chat/completions', ENV.GROQ, 'llama-3.3-70b-versatile', s, h) },
-  { name: 'OpenRouter', key: 'openrouter', fn: (s,h) => openrouter(s,h) },
-];
+// ════════════════════════════════════════════════════════════════════════
+//  PLUG-AND-PLAY CUSTOM AI ENGINES
+//  Add any OpenAI-compatible API without touching engine code.
+//  Set env vars on Render:
+//    CUSTOM_AI_1_KEY=your_key
+//    CUSTOM_AI_1_HOST=api.example.com
+//    CUSTOM_AI_1_PATH=/v1/chat/completions
+//    CUSTOM_AI_1_MODEL=model-name
+//    CUSTOM_AI_1_NAME=MyAI   (display name)
+//  Supports up to 5 custom engines (CUSTOM_AI_1 through CUSTOM_AI_5)
+// ════════════════════════════════════════════════════════════════════════
+
+const CUSTOM_ENGINES = [];
+for (let i = 1; i <= 5; i++) {
+  const key   = process.env[`CUSTOM_AI_${i}_KEY`];
+  const host  = process.env[`CUSTOM_AI_${i}_HOST`];
+  const path  = process.env[`CUSTOM_AI_${i}_PATH`] || '/v1/chat/completions';
+  const model = process.env[`CUSTOM_AI_${i}_MODEL`];
+  const name  = process.env[`CUSTOM_AI_${i}_NAME`] || `Custom${i}`;
+  if (key && host && model) {
+    CUSTOM_ENGINES.push({ name, key, host, path, model });
+    LLM[`custom${i}`] = { on: true, err: null };
+    console.log(`[CUSTOM AI] Loaded: ${name} (${host})`);
+  }
+}
+
+// Dynamic engine list — standard + custom
+function getEngines() {
+  const standard = [
+    { name: 'Gemini',     key: 'gemini',     fn: (s,h) => gemini(s,h) },
+    { name: 'Claude',     key: 'claude',     fn: (s,h) => claude(s,h) },
+    { name: 'Grok',       key: 'grok',       fn: (s,h) => openaiStyle('api.x.ai', '/v1/chat/completions', ENV.GROK, 'grok-beta', s, h) },
+    { name: 'DeepSeek',   key: 'deepseek',   fn: (s,h) => openaiStyle('api.deepseek.com', '/v1/chat/completions', ENV.DEEPSEEK, 'deepseek-chat', s, h) },
+    { name: 'Groq',       key: 'groq',       fn: (s,h) => openaiStyle('api.groq.com', '/openai/v1/chat/completions', ENV.GROQ, 'llama-3.3-70b-versatile', s, h) },
+    { name: 'OpenRouter', key: 'openrouter', fn: (s,h) => openrouter(s,h) },
+  ];
+  const custom = CUSTOM_ENGINES.map((eng, i) => ({
+    name: eng.name,
+    key:  `custom${i + 1}`,
+    fn:   (s, h) => openaiStyle(eng.host, eng.path, eng.key, eng.model, s, h),
+  }));
+  return [...standard, ...custom];
+}
 
 async function callLLM(system, history) {
-  for (const eng of ENGINES) {
-    if (!LLM[eng.key].on) continue;
+  for (const eng of getEngines()) {
+    if (!LLM[eng.key]?.on) continue;
     try {
       const text = await eng.fn(system, history);
       if (text) { LLM[eng.key].err = null; return text; }
@@ -1168,8 +1270,52 @@ function startKeepAlive() {
       const mod = url.startsWith('https') ? https : http;
       mod.get(url, () => {}).on('error', () => {});
     } catch {}
-  }, 4 * 60 * 1000); // every 4 minutes
+  }, 4 * 60 * 1000);
   console.log(`[KEEP-ALIVE] Pinging ${url} every 4 mins`);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  CONNECTION HEALTH MONITOR
+//  Detects if Baileys silently drops and force-reconnects
+// ════════════════════════════════════════════════════════════════════════
+
+let lastMsgTime  = Date.now();
+let reconnecting = false;
+let connState    = 'closed';
+
+function updateLastMsg() { lastMsgTime = Date.now(); }
+
+function startHealthMonitor() {
+  setInterval(async () => {
+    if (reconnecting) return;
+    const silentMins = (Date.now() - lastMsgTime) / 60000;
+
+    // If connection is supposedly open but no activity for 45+ mins
+    // and we're in an active period — probe the connection
+    if (connState === 'open' && silentMins > 45) {
+      console.log(`[HEALTH] No activity for ${Math.round(silentMins)}m — probing connection...`);
+      try {
+        // Send a keep-alive to WhatsApp servers
+        await sock?.sendPresenceUpdate('available');
+        console.log('[HEALTH] Connection alive ✓');
+      } catch(e) {
+        console.warn('[HEALTH] Connection dead — forcing reconnect');
+        forceReconnect();
+      }
+    }
+  }, 15 * 60 * 1000); // check every 15 mins
+}
+
+async function forceReconnect() {
+  if (reconnecting) return;
+  reconnecting = true;
+  console.log('[RECONNECT] Forcing fresh connection...');
+  try {
+    sock?.end();
+  } catch {}
+  await delay(3000);
+  reconnecting = false;
+  connect();
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1220,16 +1366,21 @@ async function connect() {
     }
 
     if (connection === 'open') {
-      console.log('\n✅ ULEN v9.0 IS LIVE — Project Mainframe\n');
+      connState = 'open';
+      reconnecting = false;
+      console.log('\n✅ ULEN v9.1 IS LIVE — Project Mainframe\n');
       startKeepAlive();
+      startHealthMonitor();
     }
 
     if (connection === 'close') {
+      connState = 'closed';
       const code = lastDisconnect?.error?.output?.statusCode;
       console.log(`[DISCONNECT] code: ${code}`);
       if (code !== DisconnectReason.loggedOut) {
         pairingDone = false;
-        setTimeout(connect, 5000);
+        const backoff = reconnecting ? 15000 : 5000;
+        setTimeout(connect, backoff);
       } else {
         console.log('[LOGGED OUT] Delete auth_info_baileys folder and restart.');
       }
@@ -1244,7 +1395,7 @@ async function connect() {
       try {
         if (!msg.message) continue;
 
-        const jid      = msg.key.remoteJid;
+        updateLastMsg(); // track last activity for health monitor
         const fromMe   = msg.key.fromMe;
         const isGroup  = isJidGroup(jid);
         const isBcast  = isJidBroadcast(jid);
@@ -1255,17 +1406,36 @@ async function connect() {
         if (msgCache.get(msgId)) continue;
         msgCache.set(msgId, true);
 
-        // ── Status updates from contacts ──────────────────────────────
-        if (jid === 'status@broadcast' && !fromMe) {
-          const senderJid  = msg.key.participant || msg.participant || jid;
+        // ── Status updates — contacts AND owner's own statuses ───────
+        if (jid === 'status@broadcast') {
+          const senderJid  = msg.key.participant || msg.participant || (fromMe ? OWNER_JID : jid);
+          const senderName = fromMe ? 'Bariqqi (Creator)' : pushName;
           const statusText =
             msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
             msg.message?.imageMessage?.caption ||
             msg.message?.videoMessage?.caption || '';
+
           if (statusText) {
-            ingestStatus(senderJid, pushName, statusText);
-            console.log(`[STATUS VIEW] ${pushName}: "${statusText.slice(0, 50)}"`);
+            if (fromMe) {
+              // Owner's own status — save as memory/learning
+              saveMemory(`Creator posted status: "${statusText}"`, 'owner_status', 'whatsapp');
+              learnFromText(statusText, 'owner_status');
+              console.log(`[OWN STATUS] Saved: "${statusText.slice(0, 60)}"`);
+            } else {
+              ingestStatus(senderJid, senderName, statusText);
+              console.log(`[STATUS VIEW] ${senderName}: "${statusText.slice(0, 50)}"`);
+            }
+          }
+
+          // Also learn from status images
+          if (fromMe && msg.message?.imageMessage) {
+            try {
+              const buffer  = await downloadMediaMessage(msg, 'buffer', {});
+              const caption = msg.message.imageMessage.caption || 'Owner status image';
+              const learned = await learnFromImage(buffer, `Owner status: ${caption}`);
+              if (learned) saveMemory(learned, 'owner_status_image', 'whatsapp');
+            } catch {}
           }
           continue;
         }
@@ -1378,12 +1548,15 @@ async function connect() {
 // Health / keep-alive — UptimeRobot points here
 app.get('/', (req, res) => res.json({
   status:   'online',
-  agent:    'Ulen v9.0',
+  agent:    'Ulen v9.1',
   uptime:   Math.floor(process.uptime()) + 's',
   contacts: profileStore.size,
   offline:  isOffline,
   admin:    adminMode,
-  llm:      Object.fromEntries(Object.entries(LLM).map(([k, v]) => [k, v.on ? '✅' : `❌ ${v.err?.slice(0, 40) || 'no key'}`])),
+  connection: connState,
+  lastActivity: Math.round((Date.now() - lastMsgTime) / 60000) + 'm ago',
+  llm: Object.fromEntries(Object.entries(LLM).map(([k, v]) => [k, v.on ? '✅' : `❌ ${v.err?.slice(0, 40) || 'no key'}`])),
+  custom_engines: CUSTOM_ENGINES.map(e => e.name),
   profiling: { tracked: Object.keys(PROFILES).length, broadcasts: BROADCASTS.filter(b => !b.sentAt).length },
   learnings: { teachings: LEARNINGS.teachings.length, memories: MEMORIES.entries.length },
 }));
@@ -1406,6 +1579,7 @@ app.post('/teach-sticker',      (req, res) => { const { hash, meaning } = req.bo
 app.post('/config/price-route', (req, res) => { const { name, sourceGroupId, destGroupId, markup } = req.body; if (!sourceGroupId || !destGroupId) return res.status(400).json({ error: 'Missing' }); CONFIG.priceRoutes.push({ name: name || 'Route', sourceGroupId, destGroupId, markup: markup || 0.10 }); save('config'); res.json({ success: true }); });
 app.post('/config/active-group',(req, res) => { const { groupId } = req.body; if (!groupId) return res.status(400).json({ error: 'Missing' }); if (!CONFIG.activeGroups.includes(groupId)) CONFIG.activeGroups.push(groupId); save('config'); res.json({ success: true }); });
 app.post('/status/post',        async (req, res) => { await postStatus(); res.json({ success: true }); });
+app.post('/reconnect', async (req, res) => { await forceReconnect(); res.json({ success: true, message: 'Reconnecting...' }); });
 app.get('/group-observations',  (req, res) => res.json(Object.entries(GROUP_OBS).map(([jid, g]) => ({ jid, name: g.name, messages: g.messages.length }))));
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1414,10 +1588,11 @@ app.get('/group-observations',  (req, res) => res.json(Object.entries(GROUP_OBS)
 
 app.listen(ENV.PORT, () => {
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('  PROJECT MAINFRAME — Ulen v9.0');
+  console.log('  PROJECT MAINFRAME — Ulen v9.1');
   console.log(`  Port: ${ENV.PORT}`);
   const engines = Object.entries(LLM).filter(([,v]) => v.on).map(([k]) => k).join(' · ');
   console.log(`  Engines: ${engines || 'NONE — add API keys!'}`);
+  if (CUSTOM_ENGINES.length) console.log(`  Custom AIs: ${CUSTOM_ENGINES.map(e => e.name).join(', ')}`);
   const keysOk = [
     `ANTHROPIC: ${ENV.ANTHROPIC ? ENV.ANTHROPIC.slice(0,8) + '...' : 'NOT SET'}`,
     `GEMINI:    ${ENV.GEMINI    ? ENV.GEMINI.slice(0,8)    + '...' : 'NOT SET'}`,
