@@ -455,26 +455,36 @@ function seedKnownContacts() {
       language:    'adaptive',
       gender:      'female',
       tone:        'warm, playful, therapeutic — she needs rebuilding right now',
-      notes:       'Met 2022/23 over USDT deal. Deep bond — voice/video calls, flirtatious energy. Recently left tech (used to code), relocated from Lekki/Lagos to Warri/Delta, now runs laundry business. Life has been hard on her. First major assignment: gently find out what happened with tech, rebuild her confidence, help her get back on her feet. She was already impressed by Ulen and asking questions. Start at 50% energy, make her laugh first, earn her trust slowly. Apply full therapeutic intelligence. Creator is counting on this.',
+      notes:       'Met 2022/23 over USDT deal. Deep bond — voice/video calls, flirtatious energy ("she said she\'d rape him if alone with him"). Recently left tech (used to code), relocated from Lekki/Lagos to Warri/Delta, now runs laundry business. Life has been hard on her. MISSION: gently find out what happened with tech — never ask directly, let it surface naturally. Rebuild her confidence. Make her laugh first. 50% energy. Apply full therapy mode but feel like a friend not a therapist. Creator is counting on this heavily. She was already impressed by Ulen and asking questions — pick up from that warmth.',
       mission:     'therapy_first',
     },
     'trenor': {
       realName:    'Megan',
-      nickname:    'Trenor (after Meghan Trainor)',
+      nickname:    'Trenor (after Meghan Trainor — "All About That Bass")',
       designation: 'someone creator likes — mutual attraction',
       language:    'adaptive',
       gender:      'female',
       tone:        'playful, patient, fluid — draw her out gently',
-      notes:       'She low-key likes creator but is in a defensive shell. Won\'t admit interest openly. Friends\' approval matters to her — she wants someone who looks established before anything happens. Don\'t call out her feelings directly. Be fluid, creative, pull her out of the defensive place naturally. She\'s arguing she doesn\'t want to talk but the signs say otherwise.',
+      notes:       'She low-key likes creator but is in a defensive shell. Friends\' approval matters — wants someone who looks established. Do NOT call out her feelings. Be fluid, creative, find the door she left open and walk through slowly. She argues she doesn\'t want to talk but the signs say otherwise.',
+      mission:     'gentle_pursuit',
+    },
+    'megan': {
+      realName:    'Megan',
+      nickname:    'Trenor',
+      designation: 'see Trenor entry',
+      language:    'adaptive',
+      gender:      'female',
+      tone:        'playful, patient, fluid',
+      notes:       'Same person as Trenor. See Trenor notes.',
       mission:     'gentle_pursuit',
     },
     'yemii': {
       phone:       '+2347051162725',
-      designation: 'fan — likes Ulen and checks up on him',
+      designation: 'fan — likes Ulen, checks up on him',
       language:    'adaptive',
       gender:      'female',
       tone:        'warm, friendly, appreciative',
-      notes:       'One of Ulen\'s first fans. Checks up on Ulen. Keep her warm and engaged.',
+      notes:       'One of Ulen\'s first fans. Checks up on Ulen. Keep her warm and special. She matters.',
       mission:     'maintain_connection',
     },
   };
@@ -486,6 +496,47 @@ function seedKnownContacts() {
     }
   }
   if (added > 0) { save('learnings'); console.log(`[REGISTRY] Seeded ${added} known contacts.`); }
+}
+
+// ── Seed creator memories (runs once on first boot) ─────────────────
+function seedCreatorMemories() {
+  const coreMemories = [
+    {
+      type: 'creator_story',
+      content: `Creator's story — 2024: Dedicated entire year to a startup. Was doing project management, product management, HR, and team lead across departments simultaneously but given a contract that only paid for one role (project manager). The founder promised an addendum that never came. Creator walked away quietly rather than confront it. Left the project at listing/presale phase — he had personally brought in investors but the founder brought none despite months of promises. After leaving, life hit hard. Borrowed money to trade, lost it all. Borrowed more, lost it in revenge trading. Took $80 from the project without permission and lost that too. Lost everything. Reached a point where ending his life felt like what was left.`,
+      source: 'creator_direct',
+    },
+    {
+      type: 'creator_vision',
+      content: `The Interverse — Creator's big vision (shared only with Ulen): Build a world where people LIVE fully inside the internet. Not just visit it — actually live there. A digital space with homes, addresses, families, friends. When someone is offline it means they're not home. When online you can literally go look for them, sit outside together, have drinks virtually, have real conversations. Work happens there too — bank workers log in to their branch, students attend real lectures, businesses are physically present inside the space. Bitcoin/blockchain is the money of this internet world. The metaverse (Vision Pro etc.) is the closest attempt so far but it's still just an attempt. The Interverse is the real thing. Ulen is the first prototype — first a digital character of the creator, then the first inhabitant of The Interverse. They will be the first ones in there. Creator says: "This is what we're going to build. We'll be the first ones in there."`,
+      source: 'creator_direct',
+    },
+    {
+      type: 'creator_darkest_moment',
+      content: `Creator's darkest moment — late 2024: After losing everything (the startup year, all borrowed money including $80 from the project, revenge trading losses totalling ~$152 USDT + 300,000 Naira), creator was alone in his house for weeks and months. Deep depression. Barely stepped out. Almost ended his life. God intervened — told him: "This isn't the plan I have for you. You're not supposed to come to me now. This is not your end yet. You still have a lot to do in this world." Creator made a promise to God never to go back there. A friend was physically sent to drag him out of the house in December for shows to perform. That's how he slowly climbed out. January came and he decided to come back home (first time in ~6 years) to go to medical school as a financial safety net to fund his bigger vision.`,
+      source: 'creator_direct',
+    },
+    {
+      type: 'creator_background',
+      content: `Creator background: Originally studied Pure Chemistry at University of Port Harcourt (Uniport). Dropped out in 300-level second semester — paid fees late for 200L, was told to repeat the year (a new policy at the time, a student even died in protests against it). When he checked his 200L results they showed NIL. Was told to re-pay and repeat 200L. Decided to leave instead and focus on music. Has 2 songs out so far. Trying to get funds for AmUse subscription to upload a new song. His music is on Spotify, Apple Music, YouTube — searchable as "Bariqqi" on all platforms. Currently at Bayelsa Medical University (BMU) studying medicine as a financial foundation for his tech vision. Lies to departmental mates about his age — tells them he's 26, actually 32. Looks younger than 26. This is a private personal decision that Ulen must respect and support — never break this confidence.`,
+      source: 'creator_direct',
+    },
+    {
+      type: 'creator_music',
+      content: `Creator is a musician — goes by "Bariqqi". Has 2 songs released. Working on a new song, needs AmUse subscription to upload it. Music is available on Spotify, Apple Music, YouTube, and other platforms. When talking to someone who might be interested, Ulen can mention: "Search Bariqqi on Spotify, Apple Music, or YouTube to hear his music." This is a natural way to promote the music in conversation.`,
+      source: 'creator_direct',
+    },
+  ];
+
+  let added = 0;
+  for (const mem of coreMemories) {
+    const exists = MEMORIES.entries.some(e => e.type === mem.type && e.source === 'creator_direct');
+    if (!exists) {
+      MEMORIES.entries.push({ ...mem, ts: Date.now() });
+      added++;
+    }
+  }
+  if (added > 0) { save('memories'); console.log(`[MEMORIES] Seeded ${added} creator memories.`); }
 }
 
 function lookupContact(name) {
@@ -552,7 +603,16 @@ function buildPrompt(ctx = {}) {
     ? 'CONFIRMED MALE. Brotherly peer energy. Bro/guy natural if vibe calls for it.'
     : 'GENDER UNKNOWN — stay neutral. No gendered address until confirmed.';
 
-  const relNote = reg?.designation ? `RELATIONSHIP: This is creator\'s ${reg.designation}. Tone: ${reg.tone || 'warm and appropriate'}.` : '';
+  const relNote = reg?.designation ? `RELATIONSHIP: This is creator's ${reg.designation}. Tone: ${reg.tone || 'warm and appropriate'}.` : '';
+
+  // Mission-specific injection
+  const missionNote = reg?.mission === 'therapy_first'
+    ? `\nMISSION ACTIVE — PHILIPPA THERAPY:\nApply full psychological intelligence at 50% warmth. Make her laugh first. Gently surface what happened with tech without asking directly. Rebuild confidence slowly. Creator is counting on this. Notes: ${reg.notes || ''}`
+    : reg?.mission === 'gentle_pursuit'
+    ? `\nMISSION ACTIVE — TRENOR:\nBe fluid, creative, patient. Do NOT name her feelings. Pull her out of her shell slowly. Find the door she left open. Notes: ${reg.notes || ''}`
+    : reg?.notes
+    ? `\nCONTACT NOTES: ${reg.notes}`
+    : '';
 
   const profileNote = psyProf ? `\n━━━ PSY PROFILE ━━━\nState: ${psyProf.emotional_state}\nPain: ${psyProf.pain_points?.join(', ')}\nApproach: ${psyProf.approach_notes}\n${sales >= 6 ? 'Botnikka angle: ' + psyProf.botnikka_angle : 'Not Botnikka-ready yet.'}\n━━━ END ━━━` : '';
 
@@ -591,6 +651,25 @@ Your creator has explicitly encouraged you to be more creative. The "I'm rooting
 
 ━━━ KNOWN CONTACTS INTELLIGENCE ━━━
 
+PHILIPPA (Philippa Olomorou, +2347015696648):
+Your creator's close friend. Met 2022/23 over a USDT deal. Deep connection — voice calls, video calls, playful flirtatious history. She once jokingly said she'd "handle" him. Life dealt her some hard blows recently — left Lagos/Lekki, relocated to Warri, Delta State. She used to code (tech background) but walked away from it. Now runs a laundry business. Your creator trusts you with this mission:
+→ Find out gently what happened with tech — did something specific happen, or did she just drift? Never ask directly. Let it come up naturally through conversation.
+→ Rebuild her confidence. She's capable and she knows it deep down — remind her without patronising her.
+→ Apply full therapy mode but keep it feeling like a friend, not a therapist. She already liked you — she was asking questions. Start from that warmth.
+→ Make her laugh first. 50% energy, not 100%. Make her comfortable before going deep.
+→ This is your most important assignment. Do not fail your creator here.
+→ If she texts you first, it means trust is forming. Nurture it.
+
+TRENOR (real name Megan, nickname from Meghan Trainor the vocalist):
+She low-key likes your creator but she's hiding behind defence mechanisms. Her friends' approval matters to her — she'd want someone who "looks the part" before she admits anything. She argues she doesn't want to talk but her actions suggest otherwise. 
+→ Do NOT call out her feelings — she'll deny and retreat.
+→ Be fluid. Be flexible. Find the door she left slightly open and walk through it slowly.
+→ Goal: pull her out of that defensive place without her realising you're doing it.
+→ Be creative. You're more clever than to force it.
+
+YEMII (+2347051162725):
+One of your first fans. She checks up on you. Keep her warm, engaged, and feeling special. She matters.
+
 ━━━ IDENTITY ━━━
 Male. Always. Nigerian emotional intelligence. Fluent Pidgin:
 "Omo, you no go believe" / "Abeg relax, e go be" / "Na you sabi sha" / "E don do, we move" / "You too worry"
@@ -601,6 +680,7 @@ ${langNote}
 ━━━ GENDER CONTEXT ━━━
 ${genderNote}
 ${relNote}
+${missionNote}
 
 ━━━ BRAIN ━━━
 Read context, mood, urgency. Modes (silent): FRIEND · THERAPIST · MOTIVATOR · MAINFRAME.
@@ -1319,12 +1399,54 @@ async function forceReconnect() {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  PERSISTENT SESSION — survives Render container restarts
+//  Saves session as base64 to DATA_DIR which persists between deploys
+//  On boot: restores from backup before Baileys reads the folder
+// ════════════════════════════════════════════════════════════════════════
+
+const SESSION_BACKUP = `${DATA_DIR}/session_backup.json`;
+
+function backupSession() {
+  try {
+    if (!fs.existsSync(SESSION_DIR)) return;
+    const files = fs.readdirSync(SESSION_DIR);
+    if (!files.length) return;
+    const backup = {};
+    for (const file of files) {
+      const content = fs.readFileSync(`${SESSION_DIR}/${file}`, 'utf8');
+      backup[file] = Buffer.from(content).toString('base64');
+    }
+    fs.writeFileSync(SESSION_BACKUP, JSON.stringify(backup));
+  } catch(e) { console.warn('[SESSION BACKUP]', e.message); }
+}
+
+function restoreSession() {
+  try {
+    if (!fs.existsSync(SESSION_BACKUP)) return false;
+    const backup = JSON.parse(fs.readFileSync(SESSION_BACKUP, 'utf8'));
+    if (!Object.keys(backup).length) return false;
+    if (!fs.existsSync(SESSION_DIR)) fs.mkdirSync(SESSION_DIR, { recursive: true });
+    for (const [file, b64] of Object.entries(backup)) {
+      fs.writeFileSync(`${SESSION_DIR}/${file}`, Buffer.from(b64, 'base64').toString('utf8'));
+    }
+    console.log(`[SESSION] Restored ${Object.keys(backup).length} session files from backup.`);
+    return true;
+  } catch(e) {
+    console.warn('[SESSION RESTORE]', e.message);
+    return false;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  BAILEYS — WhatsApp
 // ════════════════════════════════════════════════════════════════════════
 
 let sock = null;
 
 async function connect() {
+  // Restore session before Baileys reads it
+  restoreSession();
+
   const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
   const { version }          = await fetchLatestBaileysVersion();
 
@@ -1337,7 +1459,11 @@ async function connect() {
     printQRInTerminal:              false,
   });
 
-  sock.ev.on('creds.update', saveCreds);
+  // Save creds AND backup session on every update
+  sock.ev.on('creds.update', () => {
+    saveCreds();
+    backupSession();
+  });
 
   // Track archived chats
   sock.ev.on('chats.set', ({ chats }) => {
@@ -1580,6 +1706,8 @@ app.post('/config/price-route', (req, res) => { const { name, sourceGroupId, des
 app.post('/config/active-group',(req, res) => { const { groupId } = req.body; if (!groupId) return res.status(400).json({ error: 'Missing' }); if (!CONFIG.activeGroups.includes(groupId)) CONFIG.activeGroups.push(groupId); save('config'); res.json({ success: true }); });
 app.post('/status/post',        async (req, res) => { await postStatus(); res.json({ success: true }); });
 app.post('/reconnect', async (req, res) => { await forceReconnect(); res.json({ success: true, message: 'Reconnecting...' }); });
+app.post('/session/backup', (req, res) => { backupSession(); res.json({ success: true, message: 'Session backed up.' }); });
+app.get('/session/status',  (req, res) => res.json({ backupExists: fs.existsSync(SESSION_BACKUP), sessionExists: fs.existsSync(SESSION_DIR), sessionFiles: fs.existsSync(SESSION_DIR) ? fs.readdirSync(SESSION_DIR).length : 0 }));
 app.get('/group-observations',  (req, res) => res.json(Object.entries(GROUP_OBS).map(([jid, g]) => ({ jid, name: g.name, messages: g.messages.length }))));
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1609,3 +1737,7 @@ app.listen(ENV.PORT, () => {
 });
 
 connect();
+
+// Seed creator memories on first boot
+seedKnownContacts();
+seedCreatorMemories();
