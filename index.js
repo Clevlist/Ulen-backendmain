@@ -1508,7 +1508,14 @@ async function connect() {
         const backoff = reconnecting ? 15000 : 5000;
         setTimeout(connect, backoff);
       } else {
-        console.log('[LOGGED OUT] Delete auth_info_baileys folder and restart.');
+        console.log('[LOGGED OUT] Session invalid — wiping and starting fresh pairing...');
+        try {
+          if (fs.existsSync(SESSION_DIR)) fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+          if (fs.existsSync(SESSION_BACKUP)) fs.unlinkSync(SESSION_BACKUP);
+          console.log('[SESSION] Wiped clean.');
+        } catch(e) { console.warn('[SESSION WIPE]', e.message); }
+        pairingDone = false;
+        setTimeout(connect, 5000);
       }
     }
   });
@@ -1522,6 +1529,7 @@ async function connect() {
         if (!msg.message) continue;
 
         updateLastMsg(); // track last activity for health monitor
+        const jid      = msg.key.remoteJid;
         const fromMe   = msg.key.fromMe;
         const isGroup  = isJidGroup(jid);
         const isBcast  = isJidBroadcast(jid);
