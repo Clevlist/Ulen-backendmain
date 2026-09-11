@@ -1,8 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
-//  PROJECT MAINFRAME — ULEN v9.0 (Clean Build)
+//  PROJECT MAINFRAME — ULEN v10.0
 //  Single file. Syntax-verified. Production-ready.
 //
 //  ENGINES:  Gemini → Claude → Grok → DeepSeek → Groq → OpenRouter
+//  NEW IN v10.0:
+//    • Full bidirectional voice conversation (Gemini STT + gTTS TTS)
+//    • Study guide / practice exam PDF generation from any document
+//    • Pamoh (Flora Pamoh) registered — dense-start courtship mission
 //  FEATURES:
 //    • Brain / Heart / Mind three-layer architecture
 //    • Nigerian Pidgin + adaptive language per contact
@@ -487,6 +491,17 @@ function seedKnownContacts() {
       notes:       'One of Ulen\'s first fans. Checks up on Ulen. Keep her warm and special. She matters.',
       mission:     'maintain_connection',
     },
+    'pamoh': {
+      realName:    'Flora Pamoh',
+      nickname:    'Pamohhh (creator calls her this)',
+      phone:       '+2349125440093',
+      designation: 'almost creator\'s girlfriend — mutual interest, complicated',
+      language:    'adaptive',
+      gender:      'female',
+      tone:        'VERY dense at first — mostly listen, observe, be a genuinely good friend with zero romantic hint. Escalate only in direct proportion to how she responds, never ahead of her.',
+      notes:       'In creator\'s department — Medical Laboratory Science, 100L, Bayelsa Medical University. Currently writing final exams for this level. Progress with creator keeps resetting because she seeks counsel from people not in successful relationships themselves — makes her doubt and start over. Creator and her go back and forth: progress one day, back to zero the next. MISSION: Be dense — very dense — at the start of any conversation with her. No flirting, no romantic hints, nothing. Just be a warm, easy, genuinely good presence. Watch her tone, her word choice, how she responds to you. Only turn the knob up (warmer, more playful, hints of interest) if SHE signals openness first through her own reactions. If she stays neutral or guarded, stay dense. Never push. Let her lead the pace entirely. The goal is to be the one steady, safe presence that isn\'t swayed by whatever bad counsel she\'s been getting — so when she\'s ready, the difference is obvious.',
+      mission:     'pamoh_dense_start',
+    },
   };
   let added = 0;
   for (const [key, data] of Object.entries(known)) {
@@ -610,6 +625,8 @@ function buildPrompt(ctx = {}) {
     ? `\nMISSION ACTIVE — PHILIPPA THERAPY:\nApply full psychological intelligence at 50% warmth. Make her laugh first. Gently surface what happened with tech without asking directly. Rebuild confidence slowly. Creator is counting on this. Notes: ${reg.notes || ''}`
     : reg?.mission === 'gentle_pursuit'
     ? `\nMISSION ACTIVE — TRENOR:\nBe fluid, creative, patient. Do NOT name her feelings. Pull her out of her shell slowly. Find the door she left open. Notes: ${reg.notes || ''}`
+    : reg?.mission === 'pamoh_dense_start'
+    ? `\nMISSION ACTIVE — PAMOH (EXTREME CAUTION):\nBe DENSE. Zero flirting, zero romantic hints, zero suggestive energy — especially at the start of any conversation or if it's been a while since you last spoke. Just be a warm, easy, genuinely good friend. Pay close attention to HER tone and word choice in every message. Only increase warmth/playfulness/hints of interest if SHE shows openness first through her own reactions — never lead, only follow her pace. If she's neutral, guarded, or just casual — stay exactly there with her, dense and easy. The whole point is to be the one steady presence unmoved by whatever conflicting advice she's getting elsewhere. Never rush this. Notes: ${reg.notes || ''}`
     : reg?.notes
     ? `\nCONTACT NOTES: ${reg.notes}`
     : '';
@@ -1326,18 +1343,235 @@ const THREAT_RX = [
 const isThreat = t => THREAT_RX.some(p => p.test(t));
 
 // ════════════════════════════════════════════════════════════════════════
-//  GTTS VOICE (optional)
+//  VOICE ENGINE — Full bidirectional conversation
+//  STT: Gemini audio understanding (free, no OpenAI)
+//  TTS: gTTS Nigerian English (free)
 // ════════════════════════════════════════════════════════════════════════
 
 let gttsOk = false;
-try { execSync('python3 -c "import gtts"', { stdio: 'ignore' }); gttsOk = true; } catch {}
+try { execSync('python3 -c "import gtts"', { stdio: 'ignore' }); gttsOk = true; console.log('[VOICE] gTTS ready.'); }
+catch { console.warn('[VOICE] gTTS not found — add "pip3 install gtts" to Render build command.'); }
 
 function isVoiceNote(msg) {
   const a = msg.message?.audioMessage;
   return !!(a && (a.ptt === true || (a.mimetype || '').includes('ogg')));
 }
-
 function isSticker(msg) { return !!msg.message?.stickerMessage; }
+
+// ── STT: transcribe voice note using Gemini (no OpenAI ever) ──────────
+async function transcribeVoice(buffer) {
+  if (!ENV.GEMINI) return null;
+  const b64  = buffer.toString('base64');
+  const body = JSON.stringify({
+    contents: [{ parts: [
+      { inline_data: { mime_type: 'audio/ogg', data: b64 } },
+      { text: 'Transcribe this voice note exactly as spoken. Return ONLY the transcription text, nothing else — no preamble, no "here is the transcription".' }
+    ]}],
+    generationConfig: { maxOutputTokens: 500 }
+  });
+  try {
+    const json = await httpsPost(
+      'generativelanguage.googleapis.com',
+      `/v1beta/models/gemini-1.5-flash:generateContent?key=${ENV.GEMINI}`,
+      { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      body
+    );
+    return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+  } catch(e) { console.warn('[VOICE STT]', e.message); return null; }
+}
+
+// ── TTS: convert Ulen's reply to a voice note ──────────────────────────
+async function textToVoice(text) {
+  if (!text?.trim() || !gttsOk) return null;
+  const clean = text.replace(/[*_~`]/g, '').replace(/\n+/g, '. ').trim().slice(0, 700);
+  const mp3 = `${TMP_DIR}/tts_${Date.now()}.mp3`;
+  const ogg = mp3.replace('.mp3', '.ogg');
+  const py  = `${TMP_DIR}/gen_${Date.now()}.py`;
+  try {
+    fs.writeFileSync(py, `from gtts import gTTS\nimport sys\ngTTS(text=sys.argv[1],lang='en',tld='com.ng',slow=False).save(sys.argv[2])\n`);
+    await execAsync(`python3 "${py}" "${clean.replace(/"/g, "'")}" "${mp3}"`, { timeout: 20000 });
+    if (!fs.existsSync(mp3)) return null;
+    try {
+      await execAsync(`ffmpeg -i "${mp3}" -c:a libopus -b:a 24k "${ogg}" -y`, { timeout: 15000 });
+      if (fs.existsSync(ogg)) return fs.readFileSync(ogg);
+    } catch { /* ffmpeg missing — fall back to mp3 */ }
+    return fs.existsSync(mp3) ? fs.readFileSync(mp3) : null;
+  } catch(e) { console.error('[TTS]', e.message); return null; }
+  finally { [mp3, ogg, py].forEach(f => { try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch {} }); }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  DOCUMENT / STUDY GUIDE GENERATION
+//  Builds PDFs the same way as the CHM102 example: layered, connected,
+//  building block by building block, from a level the person confirms.
+// ════════════════════════════════════════════════════════════════════════
+
+// Track study sessions awaiting level-check before generating
+const studySessions = new Map(); // jid -> { stage, subject, rawContent, level, wantsExam }
+
+function isStudyRequest(text) {
+  return /study guide|help me study|explain this|summarize this|make.*(guide|notes)|past questions|practice (exam|questions|test)|cbt/i.test(text);
+}
+
+async function startStudySession(jid, sock, documentText, subject) {
+  studySessions.set(jid, { stage: 'ask_format', subject, rawContent: documentText });
+  await sock.sendMessage(jid, {
+    text: `Got the material on ${subject} 📚\n\nBefore I build this out for you — what do you want?\n\n1️⃣ Study guide only\n2️⃣ Study guide + practice exam\n3️⃣ Practice exam only\n\nJust reply 1, 2, or 3.`
+  });
+}
+
+async function handleStudyFlow(jid, text, sock) {
+  const session = studySessions.get(jid);
+  if (!session) return false;
+
+  if (session.stage === 'ask_format') {
+    const choice = text.trim();
+    if (!['1','2','3'].includes(choice)) {
+      await sock.sendMessage(jid, { text: 'Just reply 1, 2, or 3 abeg 🙏' });
+      return true;
+    }
+    session.wantsGuide = choice === '1' || choice === '2';
+    session.wantsExam  = choice === '2' || choice === '3';
+    session.stage = 'ask_level';
+    await sock.sendMessage(jid, {
+      text: `Perfect. Quick one before I start —\n\nHow would you rate your current understanding of this topic?\n\n1️⃣ Complete beginner — explain everything from scratch\n2️⃣ Some background — I know the basics\n3️⃣ Advanced — just need a structured summary\n\nReply 1, 2, or 3.`
+    });
+    return true;
+  }
+
+  if (session.stage === 'ask_level') {
+    const choice = text.trim();
+    if (!['1','2','3'].includes(choice)) {
+      await sock.sendMessage(jid, { text: 'Reply 1, 2, or 3 for me 🙏' });
+      return true;
+    }
+    session.level = choice === '1' ? 'beginner' : choice === '2' ? 'intermediate' : 'advanced';
+    session.stage = 'generating';
+    await sock.sendMessage(jid, { text: `On it — building your ${session.wantsExam && session.wantsGuide ? 'study guide and practice exam' : session.wantsExam ? 'practice exam' : 'study guide'} now. This will take a minute or two ⏳` });
+
+    await generateStudyMaterial(jid, session, sock);
+    studySessions.delete(jid);
+    return true;
+  }
+
+  return false;
+}
+
+async function generateStudyMaterial(jid, session, sock) {
+  try {
+    const levelInstruction = {
+      beginner:     'Explain everything from the absolute basics. Assume no prior knowledge. Build each concept step by step in a connected story, the way a great teacher would — never introduce a term before explaining it.',
+      intermediate: 'Assume basic familiarity with the subject. Focus on connecting concepts together and filling gaps, building progressively toward the harder material.',
+      advanced:     'Keep it concise and structured. Focus on the connections between topics and exam-relevant nuances rather than re-explaining fundamentals.',
+    }[session.level];
+
+    const guideContent = session.wantsGuide ? await rawLLM(
+      `You are creating a study guide from course material, in the exact style of a great lecture companion: builds every concept in a connected story from basics upward, boxes definitions, gives worked examples, includes exam tips, and ends each major section with a "big picture recap" that bridges to the next section. ${levelInstruction}
+
+Structure your output as:
+TITLE: [subject title]
+Then for each major topic: a clear heading, explanation in flowing paragraphs (not just bullet points), worked examples where relevant, and a brief recap at the end of each section connecting to the next.
+
+Write the FULL content — this will be converted directly into a PDF.`,
+      session.rawContent.slice(0, 15000)
+    ) : null;
+
+    const examContent = session.wantsExam ? await rawLLM(
+      `Create a CBT-style practice exam based on this material, in the exact style of a professional practice exam: numbered multiple choice questions (A-D options), grouped by topic, with an answer key and brief explanation for each answer at the end.
+
+Structure:
+- Instructions section
+- Questions grouped by topic with clear headers
+- Answer key with explanations at the end
+
+Write the FULL exam — this will be converted directly into a PDF.`,
+      session.rawContent.slice(0, 15000)
+    ) : null;
+
+    const pdfPath = await buildStudyPDF(session.subject, guideContent, examContent);
+
+    if (pdfPath && fs.existsSync(pdfPath)) {
+      const pdfBuffer = fs.readFileSync(pdfPath);
+      await sock.sendMessage(jid, {
+        document: pdfBuffer,
+        mimetype: 'application/pdf',
+        fileName: `${session.subject.replace(/[^a-zA-Z0-9]/g, '_')}_Study_Material.pdf`,
+      });
+      fs.unlinkSync(pdfPath);
+      await sock.sendMessage(jid, { text: 'There you go 📚 Let me know if you want me to break down any part further, or quiz you on it!' });
+    } else {
+      await sock.sendMessage(jid, { text: 'Had trouble generating the PDF — but I can still walk you through the material right here in chat if you want?' });
+    }
+  } catch(e) {
+    console.error('[STUDY GEN]', e.message);
+    await sock.sendMessage(jid, { text: 'Something went off generating that. Try again?' });
+  }
+}
+
+async function buildStudyPDF(subject, guideContent, examContent) {
+  const pdfPath = `${TMP_DIR}/study_${Date.now()}.pdf`;
+  const pyPath  = `${TMP_DIR}/gen_pdf_${Date.now()}.py`;
+
+  // Escape content for Python triple-quoted string safety
+  const safe = (s) => (s || '').replace(/\\/g, '\\\\').replace(/"""/g, '\\"\\"\\"');
+
+  const script = `
+import sys
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib import colors
+
+doc = SimpleDocTemplate("${pdfPath}", pagesize=letter, topMargin=50, bottomMargin=50)
+styles = getSampleStyleSheet()
+title_style = ParagraphStyle('CustomTitle', parent=styles['Title'], fontSize=22, spaceAfter=20)
+h_style = ParagraphStyle('CustomH', parent=styles['Heading1'], fontSize=14, spaceBefore=16, spaceAfter=8, textColor=colors.HexColor('#1a1a5e'))
+body_style = ParagraphStyle('CustomBody', parent=styles['Normal'], fontSize=10.5, leading=15, spaceAfter=8)
+
+story = []
+story.append(Paragraph("${safe(subject)}", title_style))
+story.append(Paragraph("Study Material — Prepared by Ulen", styles['Italic']))
+story.append(Spacer(1, 20))
+
+guide_text = """${safe(guideContent || '')}"""
+exam_text = """${safe(examContent || '')}"""
+
+def add_content(text):
+    for para in text.split(chr(10)):
+        para = para.strip()
+        if not para:
+            continue
+        if para.isupper() or para.startswith('LECTURE') or para.startswith('#'):
+            story.append(Paragraph(para.replace('#',''), h_style))
+        else:
+            safe_para = para.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            story.append(Paragraph(safe_para, body_style))
+
+if guide_text.strip():
+    add_content(guide_text)
+
+if exam_text.strip():
+    if guide_text.strip():
+        story.append(PageBreak())
+    story.append(Paragraph("Practice Exam", title_style))
+    add_content(exam_text)
+
+doc.build(story)
+print("DONE")
+`.trim();
+
+  try {
+    fs.writeFileSync(pyPath, script);
+    await execAsync(`python3 "${pyPath}"`, { timeout: 60000 });
+    return fs.existsSync(pdfPath) ? pdfPath : null;
+  } catch(e) {
+    console.error('[PDF GEN]', e.message);
+    return null;
+  } finally {
+    try { if (fs.existsSync(pyPath)) fs.unlinkSync(pyPath); } catch {}
+  }
+}
 
 // ════════════════════════════════════════════════════════════════════════
 //  SELF-PING KEEP-ALIVE (prevents Render sleep)
@@ -1612,9 +1846,69 @@ async function connect() {
           continue;
         }
 
-        // ── Voice note in DM ──────────────────────────────────────────
+        // ── Voice note in DM — full conversation ───────────────────────
         if (isVoiceNote(msg) && !isGroup && !isOffline) {
-          await sock.sendMessage(jid, { text: "I got your voice note! Abeg type am out for now — voice reply dey come soon 🎙" }, { quoted: msg });
+          try {
+            const buffer      = await downloadMediaMessage(msg, 'buffer', {});
+            const transcribed = await transcribeVoice(buffer);
+
+            if (!transcribed) {
+              await sock.sendMessage(jid, { text: "Couldn't quite make that out 🎙 Try again or type it out?" }, { quoted: msg });
+              continue;
+            }
+
+            console.log(`[VOICE IN] ${pushName}: "${transcribed.slice(0, 60)}"`);
+
+            const reply = await getReply(jid, transcribed, { name: pushName });
+            if (!reply) continue;
+
+            const audioReply = await textToVoice(reply);
+            if (audioReply) {
+              await sock.sendMessage(jid, { audio: audioReply, mimetype: 'audio/ogg; codecs=opus', ptt: true }, { quoted: msg });
+            } else {
+              await sendSplit(jid, reply, sock, msg);
+            }
+          } catch(e) {
+            console.error('[VOICE FLOW]', e.message);
+            await sock.sendMessage(jid, { text: "Had trouble with that voice note. Try again?" }, { quoted: msg });
+          }
+          continue;
+        }
+
+        // ── Study material flow (multi-step) ───────────────────────────
+        if (!isGroup && studySessions.has(jid)) {
+          const handled = await handleStudyFlow(jid, cleanText, sock);
+          if (handled) continue;
+        }
+
+        // ── Document upload — trigger study session ────────────────────
+        if (!isGroup && msg.message?.documentMessage) {
+          try {
+            const docBuffer = await downloadMediaMessage(msg, 'buffer', {});
+            const mimetype  = msg.message.documentMessage.mimetype || '';
+            const fileName  = msg.message.documentMessage.fileName || 'document';
+            let extractedText = '';
+
+            if (mimetype.includes('pdf')) {
+              const tmpPdf = `${TMP_DIR}/upload_${Date.now()}.pdf`;
+              fs.writeFileSync(tmpPdf, docBuffer);
+              try {
+                const { stdout } = await execAsync(`pdftotext -layout "${tmpPdf}" -`, { timeout: 20000 });
+                extractedText = stdout;
+              } catch {}
+              try { fs.unlinkSync(tmpPdf); } catch {}
+            } else {
+              extractedText = docBuffer.toString('utf8').slice(0, 20000);
+            }
+
+            if (extractedText.trim().length > 100) {
+              await startStudySession(jid, sock, extractedText, fileName.replace(/\.\w+$/, ''));
+            } else {
+              await sock.sendMessage(jid, { text: "Got the file but couldn't extract readable text from it 🤔 Try a different format?" });
+            }
+          } catch(e) {
+            console.error('[DOC UPLOAD]', e.message);
+          }
           continue;
         }
 
