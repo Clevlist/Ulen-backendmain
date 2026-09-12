@@ -1676,6 +1676,8 @@ function restoreSession() {
 // ════════════════════════════════════════════════════════════════════════
 
 let sock = null;
+let currentPairingCode = null;
+let pairingExpiresAt   = null;
 
 async function connect() {
   // Restore session before Baileys reads it
@@ -1716,19 +1718,39 @@ async function connect() {
         await delay(2000);
         const code = await sock.requestPairingCode(OWNER_PHONE);
         const fmt  = code.match(/.{1,4}/g).join('-');
-        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('  ULEN — ENTER THIS CODE\n');
-        console.log(`        👉  ${fmt}  👈\n`);
-        console.log('  WhatsApp → Settings → Linked Devices');
-        console.log('  → Link a Device → Link with phone number');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        currentPairingCode = fmt;
+        pairingExpiresAt   = Date.now() + 180000; // 3 minutes display window
+
+        const printCode = () => {
+          const secsLeft = Math.max(0, Math.round((pairingExpiresAt - Date.now()) / 1000));
+          console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          console.log('  ULEN — ENTER THIS CODE NOW\n');
+          console.log(`        👉  ${fmt}  👈\n`);
+          console.log(`  Expires in ~${secsLeft}s — also visible at /pairing-code`);
+          console.log('  WhatsApp → Settings → Linked Devices');
+          console.log('  → Link a Device → Link with phone number');
+          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+        };
+
+        printCode();
+        // Reprint every 15s so it's never buried in scrolling logs
+        const reprintInterval = setInterval(() => {
+          if (Date.now() > pairingExpiresAt || sock.authState.creds.registered) {
+            clearInterval(reprintInterval);
+            currentPairingCode = null;
+            return;
+          }
+          printCode();
+        }, 15000);
+
       } catch(e) { console.error('[PAIRING]', e.message); pairingDone = false; }
     }
 
     if (connection === 'open') {
       connState = 'open';
       reconnecting = false;
-      console.log('\n✅ ULEN v9.1 IS LIVE — Project Mainframe\n');
+      currentPairingCode = null;
+      console.log('\n✅ ULEN v10.0 IS LIVE — Project Mainframe\n');
       startKeepAlive();
       startHealthMonitor();
     }
@@ -2010,6 +2032,16 @@ app.post('/status/post',        async (req, res) => { await postStatus(); res.js
 app.post('/reconnect', async (req, res) => { await forceReconnect(); res.json({ success: true, message: 'Reconnecting...' }); });
 app.post('/session/backup', (req, res) => { backupSession(); res.json({ success: true, message: 'Session backed up.' }); });
 app.get('/session/status',  (req, res) => res.json({ backupExists: fs.existsSync(SESSION_BACKUP), sessionExists: fs.existsSync(SESSION_DIR), sessionFiles: fs.existsSync(SESSION_DIR) ? fs.readdirSync(SESSION_DIR).length : 0 }));
+app.get('/pairing-code', (req, res) => {
+  if (!currentPairingCode) {
+    return res.json({ available: false, message: 'No active pairing code. Either already connected, or waiting for one to generate — refresh in a few seconds.' });
+  }
+  const secsLeft = Math.max(0, Math.round((pairingExpiresAt - Date.now()) / 1000));
+  if (secsLeft === 0) {
+    return res.json({ available: false, message: 'Code expired. Trigger a redeploy to generate a fresh one.' });
+  }
+  res.json({ available: true, code: currentPairingCode, secondsLeft: secsLeft, instructions: 'WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number' });
+});
 app.get('/group-observations',  (req, res) => res.json(Object.entries(GROUP_OBS).map(([jid, g]) => ({ jid, name: g.name, messages: g.messages.length }))));
 
 // ════════════════════════════════════════════════════════════════════════
