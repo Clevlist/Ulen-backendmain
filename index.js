@@ -68,8 +68,8 @@ const ENV = {
 };
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────
-const OWNER_JID     = '2348144013686@s.whatsapp.net';
-const OWNER_PHONE   = '2348144013686';
+const OWNER_JID     = '2348031651384@s.whatsapp.net'; // TEMP: test number for pairing verification
+const OWNER_PHONE   = '2348031651384';                 // TEMP — swap back to 2348144013686 once confirmed working
 const SESSION_DIR   = './auth_info_baileys';
 const DATA_DIR      = './ulen_data';
 const TMP_DIR       = '/tmp/ulen_voice';
